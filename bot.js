@@ -1,9 +1,8 @@
 const http = require('http');
-http.createServer((req,res)=>res.end("WABOT IS LIVE - SCAN QR IN LOGS")).listen(process.env.PORT || 3000);
+http.createServer((req,res)=>res.end("WABOT LIVE - CHECK LOGS FOR QR LINK")).listen(process.env.PORT || 3000);
 
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
 const pino = require('pino')
-const qrcode = require('qrcode-terminal')
 
 async function start() {
     const { version } = await fetchLatestBaileysVersion()
@@ -21,12 +20,12 @@ async function start() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, qr } = update
         if (qr) {
-            console.log("=== QR CODE FOR WHATSAPP BUSINESS ===")
-            qrcode.generate(qr, { small: true })
-            console.log(qr)
+            console.log("=== COPY THIS LINK TO BROWSER TO SEE BIG QR ===")
+            console.log(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qr)}`)
+            console.log("=== QR STRING END ===")
         }
         if (connection === 'open') {
-            console.log("BOT CONNECTED SUCCESSFULLY! 256705991442 ONLINE")
+            console.log("BOT CONNECTED! 256705991442 ONLINE 24/7")
         }
     })
 }
