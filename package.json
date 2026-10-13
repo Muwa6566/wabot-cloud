@@ -1,10 +1,9 @@
 {
-  "name": "wabot-cloud",
+  "name": "swiss-ai",
+  "version": "1.0.0",
   "main": "bot.js",
-  "scripts": { "start": "node bot.js" },
   "dependencies": {
-    "@whiskeysockets/baileys": "latest",
-    "pino": "latest",
-    "qrcode-terminal": "^0.12.0"
+    "@whiskeysockets/baileys": "^6.7.0",
+    "pino": "^8.17.0"
   }
 }
