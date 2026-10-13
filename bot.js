@@ -1,14 +1,20 @@
 const http = require('http');
-let latestQR = null;
+let pairCode = null;
+let statusMsg = "STARTING BOT...";
 
 const server = http.createServer((req, res) => {
-  if (latestQR) {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(latestQR)}`;
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.end(`<html><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><h1>SCAN THIS WITH WHATSAPP BUSINESS 256705991442</h1><img src="${qrUrl}" style="width:90vw;max-width:500px;"><p>Refresh page for new QR every 20 sec if expired</p><p>QR updates automatically - keep this page open!</p></body></html>`);
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  if (pairCode) {
+    res.end(`<html><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center">
+    <h1>WHATSAPP PAIRING CODE</h1>
+    <h1 style="font-size:80px;letter-spacing:10px;background:black;color:white;padding:20px;border-radius:20px">${pairCode}</h1>
+    <h2>Go to WhatsApp Business > Linked Devices > Link a device > Link with phone number</h2>
+    <h2>Enter this code: ${pairCode}</h2>
+    <p>Code for: 256705991442</p>
+    <p>Refresh page if code expired</p>
+    </body></html>`);
   } else {
-    res.writeHead(200, {'Content-Type': 'text/html'});
-    res.end(`<h1 style="text-align:center;margin-top:50px">WAITING FOR QR... Refresh in 5 seconds<br>Bot starting... 256705991442</h1><script>setTimeout(()=>location.reload(),3000)</script>`);
+    res.end(`<h1 style="text-align:center;margin-top:100px">${statusMsg}<br>Refresh in 3 sec</h1><script>setTimeout(()=>location.reload(),3000)</script>`);
   }
 });
 server.listen(process.env.PORT || 3000);
@@ -26,15 +32,27 @@ async function start() {
         browser: ["Ubuntu", "Chrome", "22.04"]
     })
     sock.ev.on('creds.update', saveCreds)
+    
+    if (!sock.authState.creds.registered) {
+        statusMsg = "GENERATING PAIRING CODE... Wait 10 sec";
+        setTimeout(async () => {
+            try {
+                pairCode = await sock.requestPairingCode("256705991442");
+                statusMsg = "CODE READY!";
+                console.log("PAIRING CODE: " + pairCode);
+            } catch (e) {
+                console.log(e);
+                statusMsg = "Error generating code - redeploy";
+            }
+        }, 5000);
+    }
+
     sock.ev.on('connection.update', async (update) => {
-        const { connection, qr } = update
-        if (qr) {
-            latestQR = qr;
-            console.log("NEW QR GENERATED - SHOWING ON WEBSITE");
-        }
+        const { connection } = update
         if (connection === 'open') {
-            latestQR = null;
-            console.log("BOT CONNECTED! 256705991442 ONLINE 24/7");
+            pairCode = null;
+            statusMsg = "BOT CONNECTED! 256705991442 ONLINE 24/7";
+            console.log("BOT CONNECTED SUCCESSFULLY!");
         }
     })
 }
