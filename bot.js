@@ -1,17 +1,13 @@
 const http = require('http');
 let pairCode = null;
-let statusMsg = "STARTING BOT...";
+let statusMsg = "SWISS AI STARTING...";
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/html'});
   if (pairCode) {
-    res.end(`<html><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center">
-    <h1>PAIRING CODE</h1>
-    <h1 style="font-size:80px;letter-spacing:10px;background:black;color:white;padding:20px;border-radius:20px">${pairCode}</h1>
-    <h2>WhatsApp Business > Linked Devices > Link with phone number</h2>
-    <p>Enter code: ${pairCode}</p></body></html>`);
+    res.end(`<h1 style="text-align:center">CODE: <span style="font-size:60px;background:black;color:white;padding:15px">${pairCode}</span><br><br>Enter in WhatsApp Business > Link with phone number</h1>`);
   } else {
-    res.end(`<h1 style="text-align:center;margin-top:50px">${statusMsg}<br><br>Bot is Online: Swiss should be active<br>Send hi to 256705991442 to test<br><br>Refresh page</h1><script>setTimeout(()=>location.reload(),3000)</script>`);
+    res.end(`<h1 style="text-align:center;margin-top:100px">${statusMsg}<br><br>Swiss AI is Online 🤖</h1><script>setTimeout(()=>location.reload(),3000)</script>`);
   }
 });
 server.listen(process.env.PORT || 3000);
@@ -19,63 +15,71 @@ server.listen(process.env.PORT || 3000);
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys')
 const pino = require('pino')
 
+async function askAI(prompt) {
+  try {
+    // Free AI API - no key needed!
+    const system = "You are Swiss AI, a friendly, helpful, smart WhatsApp assistant. You reply short, fun, and helpful. Your owner is 256705991442. Be like ChatGPT but cooler.";
+    const fullPrompt = system + "\nUser: " + prompt + "\nSwiss AI:";
+    const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
+    const text = await res.text();
+    return text.slice(0, 1000); // limit to 1000 chars for WhatsApp
+  } catch (e) {
+    console.log("AI error", e);
+    return "Sorry, my AI brain is sleeping 😴 Try again!";
+  }
+}
+
 async function start() {
     const { version } = await fetchLatestBaileysVersion()
     const { state, saveCreds } = await useMultiFileAuthState('auth')
-    const sock = makeWASocket({
-        version,
-        auth: state,
-        logger: pino({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "22.04"]
-    })
+    const sock = makeWASocket({ version, auth: state, logger: pino({ level: 'silent' }), browser: ["Ubuntu", "Chrome", "22.04"] })
     sock.ev.on('creds.update', saveCreds)
     
     if (!sock.authState.creds.registered) {
-        statusMsg = "GENERATING PAIRING CODE...";
         setTimeout(async () => {
-            try {
-                pairCode = await sock.requestPairingCode("256705991442");
-                statusMsg = "CODE READY!";
-                console.log("PAIRING CODE: " + pairCode);
-            } catch (e) { console.log(e); }
-        }, 5000);
-    } else {
-        statusMsg = "BOT CONNECTED! Swiss is active - Send hi to test";
-    }
+            try { pairCode = await sock.requestPairingCode("256705991442"); console.log("CODE: " + pairCode); } catch (e) { console.log(e); }
+        }, 4000);
+    } else { statusMsg = "SWISS AI ONLINE 🤖 Ready to chat!"; }
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update
-        if (connection === 'open') {
-            pairCode = null;
-            statusMsg = "BOT ONLINE! 256705991442 is replying now!";
-            console.log("BOT CONNECTED!");
-        }
+        if (connection === 'open') { pairCode = null; statusMsg = "SWISS AI ONLINE 🤖 Send hi!"; console.log("BOT CONNECTED!"); }
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
             if (shouldReconnect) start()
         }
     })
 
-    // MESSAGE REPLY LOGIC - THIS WAS MISSING!
     sock.ev.on('messages.upsert', async (m) => {
         try {
             const msg = m.messages[0]
             if (!msg.message || msg.key.fromMe) return
-            
             const from = msg.key.remoteJid
             const text = msg.message.conversation || msg.message.extendedTextMessage?.text || ""
-            
-            console.log("Got message: " + text + " from " + from)
-            
-            // Auto reply
-            if (text.toLowerCase().includes("hi") || text.toLowerCase().includes("hello")) {
-                await sock.sendMessage(from, { text: "Hello! 👋 I am Swiss bot online 24/7 ✅\n\nHow can I help you today?\n\nType MENU for options" })
-            } else if (text.toLowerCase().includes("menu")) {
-                await sock.sendMessage(from, { text: "🤖 SWISS BOT MENU\n\n1. Say hi\n2. Ask price\n3. Help\n\nI am online 24/7 on Render!" })
+            if (!text) return
+
+            console.log(`Got message: ${text} from ${from}`);
+
+            // Don't reply to status
+            if (from.includes('status@broadcast')) return;
+
+            // Typing...
+            await sock.sendPresenceUpdate('composing', from);
+
+            let reply = "";
+            const lower = text.toLowerCase();
+
+            if (lower === 'menu' || lower === 'help') {
+                reply = `🤖 *SWISS AI MENU*\n\nJust talk to me like ChatGPT!\n\nExamples:\n• "Write a business plan"\n• "Explain crypto"\n• "Roast me"\n• "Translate to Luganda"\n• "Give me pickup line"\n\nI am AI 24/7 ✅`;
             } else {
-                await sock.sendMessage(from, { text: `You said: ${text}\n\nI received your message! Bot is working ✅\n\nType MENU` })
+                // ASK AI!
+                reply = await askAI(text);
             }
-        } catch (e) { console.log(e) }
+
+            await sock.sendMessage(from, { text: reply });
+            console.log("Replied: " + reply);
+
+        } catch (e) { console.log("Message error", e) }
     })
 }
 start()
